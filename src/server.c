@@ -137,42 +137,55 @@ void resp_404(int fd)
 void get_file(int fd, struct cache *cache, char *request_path)
 {
     
+    clock_t start_cache, end_cache, start_disk, end_disk;
+    double time_taken;
+
     char filepath[4096];
     struct file_data *filedata;
     char *mime_type;
 
     //Check to see if file in cache
+    start_cache = clock();
     struct cache_entry *entry = cache_get(cache, request_path);
+    end_cache = clock();
 
     if (strcmp(request_path, "/") == 0)
     {
-	printf("here1\n");
+		printf("here1\n");
         request_path = "/index.html";
     }
     if (entry != NULL)
     {
         //If found, send file
-	printf("in cache");
+		printf("in cache");
+		time_taken = end_cache - start_cache;
+		printf("Cache retrieval time is %f seconds\n", ((double)time_taken)/CLOCKS_PER_SEC);
         mime_type = mime_type_get(entry->path);
         send_response(fd, "HTTP/1.1 200", mime_type, entry->content, entry->content_type);
     }
     else
     {
         // Fetch file from disk
+        start_disk = clock();
+
         snprintf(filepath, sizeof filepath, "%s%s", SERVER_ROOT, request_path);
         filedata = file_load(filepath);
 	
         printf("%s\n", filepath);
+        end_disk = clock();
+        time_taken = (end_cache - start_cache) + (end_disk - start_cache);
+        printf("Disk file retrieval time is %f seconds\n", ((double)time_taken)/CLOCKS_PER_SEC);
+
         if (filedata == NULL)
         {
-	    printf("here3\n");
+	    
             //If not found, send 404 page
             fprintf(stderr, "Cannot find file :(\n");
             resp_404(fd);
         }
         else
         {
-	    //printf("not in cache");		
+	    		
             mime_type = mime_type_get(filepath);
 
             //Store file in cache
